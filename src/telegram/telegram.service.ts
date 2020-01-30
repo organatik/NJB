@@ -1,5 +1,4 @@
 import Telegraf, { Markup } from 'telegraf';
-import TelegrafInlineMenu from 'telegraf-inline-menu';
 import { Injectable } from '@nestjs/common';
 import Scene = require('telegraf/scenes/base');
 import Stage = require('telegraf/stage');
@@ -14,34 +13,96 @@ export class TelegramService {
     this.bot = new Telegraf(botToken);
     const { leave } = Stage;
 
-    // Greeter scene
-    const greeter = new Scene('greeter');
-    greeter.enter((ctx) => ctx.reply('Hi'));
-    greeter.leave((ctx) => ctx.reply('Bye'));
-    greeter.hears(/hi/gi, leave());
-    greeter.on('message', (ctx) => {
-      ctx.reply('Send `hi`');
-      console.log(ctx.message.text, 'STATE');
+    // findScene scene
+    const findScene = new Scene('findScene');
+    findScene.enter((ctx) => ctx.reply('Выберите тип Поиска'));
+    findScene.leave((ctx) => {
+      return ctx.reply(
+        'Выберите тип действия',
+        Markup.keyboard([
+          ['Search', '+ ADD'] // Row1 with 2 buttons
+        ])
+          .oneTime()
+          .resize()
+          .extra()
+      );
     });
-    // this.bot.hears('🔍 Search', (ctx) => ctx.reply('Yay!'));
-    this.bot.hears('Find', (ctx) => ctx.reply('Find!'));
-    this.bot.hears('test', (ctx) => {
-      ctx.scene.enter(greeter);
-      console.log(ctx.scene.state);
+    findScene.hears(/hi/gi, leave());
+    findScene.hears('MainMenu', leave());
+    findScene.on('message', (ctx) => {
+      // ctx.reply('Выберите тип поиска');
+      // ctx.reply(ctx.message.text);
+      // console.log(ctx.message.text, 'STATE');
+      // ctx.reply('Выберите тип Поиска'), Markup.keyboard([['Number', 'Text']]);
+    });
+
+    const addScene = new Scene('AddScene');
+    addScene.enter((ctx) => {
+      ctx.reply('Enter Company and number like this CompanyName#12345');
+    });
+
+    addScene.on('message', (ctx) => {
+      let result;
+      result = ctx.message.text.split('#');
+      if (result.length !== 2) {
+        ctx.reply('Enter like this format Companyname#12345');
+      } else {
+        ctx.reply(`Your company name is <b>${result[0]}</b>`);
+        ctx.reply(`Your company number is ${result[1]}`);
+      }
+    });
+
+    this.bot.hears('Number', (ctx) => {
+      ctx.reply('Введите номер компании');
     });
     const stage = new Stage();
     stage.command('cancel', leave());
     // Scene registration
-    stage.register(greeter);
+    stage.register(findScene);
+    stage.register(addScene);
 
     // Scene registration
-    stage.register(greeter);
-
+    this.bot.command('start', ({ reply }) => {
+      return reply(
+        'Выберите тип действия',
+        Markup.keyboard([
+          ['Search', '+ ADD'] // Row1 with 2 buttons
+        ])
+          .oneTime()
+          .resize()
+          .extra()
+      );
+    });
     this.bot.use(session());
     this.bot.use(stage.middleware());
-    this.bot.command('greeter', (ctx) => ctx.scene.enter('greeter'));
+    this.bot.command('findScene', (ctx) => ctx.scene.enter('findScene'));
     this.bot.command('test', (ctx) => {
-      ctx.scene.enter('greeter');
+      ctx.scene.enter('findScene');
+    });
+    this.bot.hears('Search', (ctx) => {
+      ctx.scene.enter('findScene');
+      return ctx.reply(
+        'Выберите тип поиска',
+        Markup.keyboard([['Number', 'Text', 'MainMenu']])
+          .oneTime()
+          .resize()
+          .extra()
+      );
+    });
+
+    this.bot.hears('+ ADD', (ctx) => {
+      ctx.scene.enter('AddScene');
+    });
+    this.bot.hears('MainMenu', (ctx) => {
+      return ctx.reply(
+        'Выберите тип действия',
+        Markup.keyboard([
+          ['🔍 Search', '+ ADD'] // Row1 with 2 buttons
+        ])
+          .oneTime()
+          .resize()
+          .extra()
+      );
     });
     this.bot.startPolling();
   }
