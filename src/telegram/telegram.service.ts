@@ -3,12 +3,13 @@ import { Injectable } from '@nestjs/common';
 import Scene = require('telegraf/scenes/base');
 import Stage = require('telegraf/stage');
 import { session } from 'telegraf';
+import { TelegramTransportService } from './telegram-transport.service';
 
 @Injectable()
 export class TelegramService {
   private bot: Telegraf<any>;
 
-  constructor() {
+  constructor(private transportServise: TelegramTransportService) {
     const botToken: string = '1000664964:AAFIvIuBaSZX9aj4O-ZGU2yQ26G0wStKvOE';
     this.bot = new Telegraf(botToken);
     const { leave } = Stage;
@@ -20,11 +21,11 @@ export class TelegramService {
       return ctx.reply(
         'Выберите тип действия',
         Markup.keyboard([
-          ['Search', '+ ADD'] // Row1 with 2 buttons
+          ['Search', '+ ADD', 'MainMenu'], // Row1 with 2 buttons
         ])
           .oneTime()
           .resize()
-          .extra()
+          .extra(),
       );
     });
     findScene.hears(/hi/gi, leave());
@@ -41,14 +42,29 @@ export class TelegramService {
       ctx.reply('Enter Company and number like this CompanyName#12345');
     });
 
+    addScene.hears('MainMenu', leave());
     addScene.on('message', (ctx) => {
       let result;
       result = ctx.message.text.split('#');
+      const name = result[0];
+      const identificator = result[1].split('.');
+      console.log(name, identificator);
       if (result.length !== 2) {
         ctx.reply('Enter like this format Companyname#12345');
       } else {
-        ctx.reply(`Your company name is <b>${result[0]}</b>`);
-        ctx.reply(`Your company number is ${result[1]}`);
+        ctx.reply(`Your company name is <b>${name}</b>`);
+        ctx.reply(`Your company number is ${identificator}`);
+        this.transportServise
+          .addCompany({
+            name,
+            identificator,
+          })
+          .then(() => {
+            ctx.reply('Company has been added');
+          })
+          .catch((errorr) => {
+            ctx.reply(`Company has NOT been added. Reason${errorr}`);
+          });
       }
     });
 
@@ -66,11 +82,11 @@ export class TelegramService {
       return reply(
         'Выберите тип действия',
         Markup.keyboard([
-          ['Search', '+ ADD'] // Row1 with 2 buttons
+          ['Search', '+ ADD', 'MainMenu'], // Row1 with 2 buttons
         ])
           .oneTime()
           .resize()
-          .extra()
+          .extra(),
       );
     });
     this.bot.use(session());
@@ -86,7 +102,7 @@ export class TelegramService {
         Markup.keyboard([['Number', 'Text', 'MainMenu']])
           .oneTime()
           .resize()
-          .extra()
+          .extra(),
       );
     });
 
@@ -97,11 +113,11 @@ export class TelegramService {
       return ctx.reply(
         'Выберите тип действия',
         Markup.keyboard([
-          ['🔍 Search', '+ ADD'] // Row1 with 2 buttons
+          ['🔍 Search', '+ ADD', 'MainMenu'], // Row1 with 2 buttons
         ])
           .oneTime()
           .resize()
-          .extra()
+          .extra(),
       );
     });
     this.bot.startPolling();
